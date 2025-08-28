@@ -8,6 +8,7 @@
   "start": "next start",
   "prisma": "prisma",
   "db:push": "prisma db push"
+  "postinstall": "prisma generate"
   },
   "dependencies": {
   "@prisma/client": "^5.18.0",
@@ -32,4 +33,5 @@
   "tailwindcss": "^3.4.10",
   "typescript": "^5.4.5"
   }
+
   }
