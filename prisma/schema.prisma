@@ -1,0 +1,48 @@
+generator client {
+provider = "prisma-client-js"
+}
+
+
+datasource db {
+provider = "sqlite" // change to postgresql in prod
+url = env("DATABASE_URL")
+}
+
+
+model Agent {
+id String @id @default(cuid())
+email String @unique
+name String
+extension String @unique
+password String // bcrypt hash
+companies Json // ["connectiv","booksnpayroll"]
+available Boolean @default(false)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+}
+
+
+model CallLog {
+id String @id @default(cuid())
+callSid String @unique
+from String
+to String
+direction String
+status String
+duration Int?
+company String
+agentExtension String?
+startedAt DateTime @default(now())
+endedAt DateTime?
+}
+
+
+model Recording {
+id String @id @default(cuid())
+recordingSid String @unique
+callSid String
+company String
+url String
+duration Int?
+createdAt DateTime @default(now())
+}
