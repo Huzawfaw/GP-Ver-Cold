@@ -25,7 +25,7 @@ export async function POST(req: NextRequest){
       name,
       password: hash,
       extension,
-      companies: JSON.stringify(companies) // <<<< IMPORTANT
+      companies: JSON.stringify(companies) // <- important (SQLite)
     }
   })
 
