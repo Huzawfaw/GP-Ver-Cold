@@ -16,6 +16,7 @@ return (
 <Link href="/dialer" className="font-bold">Dialer</Link>
 <Link href="/logs">Logs</Link>
 <Link href="/recordings">Recordings</Link>
+<Link href="/admin">Admin</Link>
 </div>
 <div className="flex items-center gap-3">
 <AvailabilityToggle />
@@ -25,4 +26,5 @@ return (
 </div>
 </nav>
 )
+
 }
