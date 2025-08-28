@@ -25,7 +25,7 @@ export async function POST(req: NextRequest){
     email: agent.email,
     extension: agent.extension,
     companies,
-    isAdmin: agent.isAdmin ?? false,   // include admin flag in JWT
+    isAdmin: Boolean(agent.isAdmin),   // include admin flag in JWT
   })
 
   const secure = process.env.NODE_ENV === 'production'
