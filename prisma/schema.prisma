@@ -1,13 +1,11 @@
 generator client {
-provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
-
 
 datasource db {
-provider = "sqlite" // change to postgresql in prod
-url = env("DATABASE_URL")
+  provider = "postgresql"         // <— was "sqlite"
+  url      = env("DATABASE_URL")
 }
-
 
 model Agent {
   id         String   @id @default(cuid())
@@ -17,37 +15,29 @@ model Agent {
   password   String
   companies  String   @default("[]")
   available  Boolean  @default(false)
-  isAdmin    Boolean  @default(false)   // <-- must exist
+  isAdmin    Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
 
-
-
-
 model CallLog {
-id String @id @default(cuid())
-callSid String @unique
-from String
-to String
-direction String
-status String
-duration Int?
-company String
-agentExtension String?
-startedAt DateTime @default(now())
-endedAt DateTime?
+  callSid   String   @id
+  from      String
+  to        String
+  direction String
+  status    String
+  duration  Int?
+  company   String
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
 }
-
 
 model Recording {
-id String @id @default(cuid())
-recordingSid String @unique
-callSid String
-company String
-url String
-duration Int?
-createdAt DateTime @default(now())
-
+  id           String   @id @default(cuid())
+  recordingSid String   @unique
+  callSid      String
+  company      String
+  url          String
+  duration     Int?
+  createdAt    DateTime @default(now())
 }
-
