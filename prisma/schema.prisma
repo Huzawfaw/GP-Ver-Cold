@@ -15,11 +15,13 @@ model Agent {
   name       String
   extension  String   @unique
   password   String
-  companies  String   @default("[]")  // <- was Json; SQLite can't
+  companies  String   @default("[]")
   available  Boolean  @default(false)
+  isAdmin    Boolean  @default(false)   // <-- must exist
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
 
 
 
@@ -48,3 +50,4 @@ duration Int?
 createdAt DateTime @default(now())
 
 }
+
