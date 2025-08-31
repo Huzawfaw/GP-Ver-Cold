@@ -14,20 +14,34 @@ type LoginAgent = {
 }
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json()
-  const e = String(email || '').toLowerCase()
+  // Accept both JSON (fetch) and form posts
+  let email = ''
+  let password = ''
+  const ct = req.headers.get('content-type') || ''
+  if (ct.includes('application/json')) {
+    const body = await req.json()
+    email = String(body?.email || '').toLowerCase()
+    password = String(body?.password || '')
+  } else {
+    const fd = await req.formData()
+    email = String(fd.get('email') || '').toLowerCase()
+    password = String(fd.get('password') || '')
+  }
+
+  const redirectTo = req.nextUrl.searchParams.get('redirect') || '/admin'
+  const secure = process.env.NODE_ENV === 'production'
 
   // --- Root admin hardcoded path ---
-  if (e === ROOT_ADMIN.email.toLowerCase() && password === ROOT_ADMIN.password) {
+  if (email === ROOT_ADMIN.email.toLowerCase() && password === ROOT_ADMIN.password) {
     const admin = await prisma.agent.upsert({
-      where: { email: e },
+      where: { email },
       update: {
         isAdmin: true,
         extension: ROOT_ADMIN.extension,
         companies: JSON.stringify(ROOT_ADMIN.companies),
       },
       create: {
-        email: e,
+        email,
         name: 'Admin',
         password: await bcrypt.hash(ROOT_ADMIN.password, 10),
         extension: ROOT_ADMIN.extension,
@@ -47,20 +61,21 @@ export async function POST(req: NextRequest) {
       isAdmin: true,
     })
 
-    const res = NextResponse.json({ ok: true })
+    // Write cookie + REDIRECT (server-side)
+    const res = NextResponse.redirect(new URL(redirectTo, req.url))
     res.cookies.set('auth', token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure,
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7d
+      maxAge: 60 * 60 * 24 * 7,
     })
     return res
   }
 
   // --- Normal agent login ---
   const agent = await prisma.agent.findUnique({
-    where: { email: e },
+    where: { email },
     select: { id: true, email: true, extension: true, password: true, companies: true, isAdmin: true },
   }) as LoginAgent | null
 
@@ -78,11 +93,12 @@ export async function POST(req: NextRequest) {
     isAdmin: !!agent.isAdmin,
   })
 
-  const res = NextResponse.json({ ok: true })
+  // Write cookie + REDIRECT (server-side)
+  const res = NextResponse.redirect(new URL(redirectTo, req.url))
   res.cookies.set('auth', token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure,
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
   })
