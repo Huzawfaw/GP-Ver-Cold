@@ -1,16 +1,16 @@
+// app/api/admin/agents/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
-// Ensure this runs on the Node.js runtime (Prisma cannot run on Edge)
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// ---- GET: list agents ----
+// GET: list agents
 export async function GET() {
   try {
-    // cheap connectivity check (optional)
+    // optional quick connectivity check
     await prisma.$queryRaw`SELECT 1`
 
     const rows = await prisma.agent.findMany({
@@ -27,14 +27,16 @@ export async function GET() {
       },
     })
 
-    const data = rows.map(r => ({
-      ...r,
-      companies: JSON.parse(r.companies as unknown as string) as string[],
-    }))
+    const data = rows.map((r) => {
+      let companies: string[] = []
+      try {
+        companies = JSON.parse((r.companies as unknown as string) ?? '[]')
+      } catch { companies = [] }
+      return { ...r, companies }
+    })
 
     return NextResponse.json(data, { status: 200 })
   } catch (e: any) {
-    // TEMP: surface error details so we know what to fix (remove later)
     return NextResponse.json(
       { error: 'Failed to load agents', detail: e?.message, code: e?.code },
       { status: 500 }
@@ -50,7 +52,6 @@ const CreateAgent = z.object({
   companies: z.array(z.string()).min(1),
 })
 
-// ---- POST: create agent ----
 export async function POST(req: Request) {
   try {
     const body = await req.json()
