@@ -13,13 +13,12 @@ type LoginAgent = {
   isAdmin: boolean
 }
 
-export async function POST(req: NextRequest){
+export async function POST(req: NextRequest) {
   const { email, password } = await req.json()
   const e = String(email || '').toLowerCase()
 
-  // --- Root admin hardcoded login path ---
+  // --- Root admin hardcoded path ---
   if (e === ROOT_ADMIN.email.toLowerCase() && password === ROOT_ADMIN.password) {
-    // Ensure an admin row exists (create if missing, update to keep consistent)
     const admin = await prisma.agent.upsert({
       where: { email: e },
       update: {
@@ -34,11 +33,9 @@ export async function POST(req: NextRequest){
         extension: ROOT_ADMIN.extension,
         companies: JSON.stringify(ROOT_ADMIN.companies),
         available: false,
-        isAdmin: true
+        isAdmin: true,
       },
-      select: {
-        id: true, email: true, extension: true, companies: true, isAdmin: true
-      }
+      select: { id: true, email: true, extension: true, companies: true, isAdmin: true },
     })
 
     const companies = JSON.parse(admin.companies) as string[]
@@ -47,27 +44,30 @@ export async function POST(req: NextRequest){
       email: admin.email,
       extension: admin.extension,
       companies,
-      isAdmin: true
+      isAdmin: true,
     })
 
-    const secure = process.env.NODE_ENV === 'production'
-    const headers = new Headers()
-    headers.append('Set-Cookie',
-      `auth=${token}; Path=/; HttpOnly; SameSite=Lax; ${secure ? 'Secure;' : ''} Max-Age=604800`
-    )
-    return new NextResponse(JSON.stringify({ ok: true }), { status: 200, headers })
+    const res = NextResponse.json({ ok: true })
+    res.cookies.set('auth', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7d
+    })
+    return res
   }
 
-  // --- Normal agent login path ---
+  // --- Normal agent login ---
   const agent = await prisma.agent.findUnique({
     where: { email: e },
-    select: { id: true, email: true, extension: true, password: true, companies: true, isAdmin: true }
+    select: { id: true, email: true, extension: true, password: true, companies: true, isAdmin: true },
   }) as LoginAgent | null
 
-  if (!agent) return new NextResponse('Invalid credentials', { status: 401 })
+  if (!agent) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
 
   const ok = await bcrypt.compare(password, agent.password)
-  if (!ok) return new NextResponse('Invalid credentials', { status: 401 })
+  if (!ok) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
 
   const companies = JSON.parse(agent.companies) as string[]
   const token = await signJwt({
@@ -75,13 +75,16 @@ export async function POST(req: NextRequest){
     email: agent.email,
     extension: agent.extension,
     companies,
-    isAdmin: Boolean(agent.isAdmin)
+    isAdmin: !!agent.isAdmin,
   })
 
-  const secure = process.env.NODE_ENV === 'production'
-  const headers = new Headers()
-  headers.append('Set-Cookie',
-    `auth=${token}; Path=/; HttpOnly; SameSite=Lax; ${secure ? 'Secure;' : ''} Max-Age=604800`
-  )
-  return new NextResponse(JSON.stringify({ ok: true }), { status: 200, headers })
+  const res = NextResponse.json({ ok: true })
+  res.cookies.set('auth', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+  })
+  return res
 }
