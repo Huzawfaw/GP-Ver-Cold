@@ -1,20 +1,12 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyJwt } from './lib/auth'
-import { isAdminEmail } from './lib/admin'
 
 const protectedMatchers = [
-  '/dialer',
-  '/logs',
-  '/recordings',
-  '/api/logs',
-  '/api/recordings',
-  '/api/agents',
-  '/api/token',
-  '/api/voice/transfer',
-  '/api/auth/register',   // registration now requires a logged-in user
-  '/admin',               // admin UI
-  '/api/admin'            // admin-only APIs
+  '/dialer','/logs','/recordings',
+  '/api/logs','/api/recordings','/api/agents',
+  '/api/token','/api/voice/transfer',
+  '/admin','/api/admin'
 ]
 
 export async function middleware(req: NextRequest) {
@@ -26,14 +18,11 @@ export async function middleware(req: NextRequest) {
   if (!token) return NextResponse.redirect(new URL('/login', req.url))
 
   try {
-    const payload = await verifyJwt(token)
-
-    // Extra gate for admin-only paths
-    const needsAdmin = pathname === '/admin' || pathname.startsWith('/api/admin')
-    if (needsAdmin && !isAdminEmail(payload.email)) {
+    const user = await verifyJwt(token)
+    const wantsAdmin = pathname === '/admin' || pathname.startsWith('/api/admin')
+    if (wantsAdmin && !user.isAdmin) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
-
     return NextResponse.next()
   } catch {
     return NextResponse.redirect(new URL('/login', req.url))
@@ -42,9 +31,8 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dialer', '/logs', '/recordings', '/admin',
-    '/api/logs/:path*', '/api/recordings/:path*', '/api/agents/:path*',
-    '/api/token', '/api/voice/transfer',
-    '/api/admin/:path*', '/api/auth/register'
+    '/dialer','/logs','/recordings','/admin',
+    '/api/logs/:path*','/api/recordings/:path*','/api/agents/:path*',
+    '/api/token','/api/voice/transfer','/api/admin/:path*'
   ]
 }
