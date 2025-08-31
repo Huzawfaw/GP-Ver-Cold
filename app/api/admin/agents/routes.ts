@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import { z } from 'zod'
 
-// Let this route always run on the server (no static caching)
+// Ensure this runs on the Node.js runtime (Prisma cannot run on Edge)
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// GET: list agents (middleware already ensured you’re admin)
+// ---- GET: list agents ----
 export async function GET() {
   try {
-    const agents = await prisma.agent.findMany({
+    // cheap connectivity check (optional)
+    await prisma.$queryRaw`SELECT 1`
+
+    const rows = await prisma.agent.findMany({
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -22,17 +26,23 @@ export async function GET() {
         createdAt: true,
       },
     })
-    const data = agents.map(a => ({
-      ...a,
-      companies: JSON.parse(a.companies as unknown as string) as string[],
+
+    const data = rows.map(r => ({
+      ...r,
+      companies: JSON.parse(r.companies as unknown as string) as string[],
     }))
-    return NextResponse.json(data)
-  } catch (e) {
-    return NextResponse.json({ error: 'Failed to load agents' }, { status: 500 })
+
+    return NextResponse.json(data, { status: 200 })
+  } catch (e: any) {
+    // TEMP: surface error details so we know what to fix (remove later)
+    return NextResponse.json(
+      { error: 'Failed to load agents', detail: e?.message, code: e?.code },
+      { status: 500 }
+    )
   }
 }
 
-const createSchema = z.object({
+const CreateAgent = z.object({
   email: z.string().email(),
   name: z.string().min(2),
   password: z.string().min(6),
@@ -40,11 +50,11 @@ const createSchema = z.object({
   companies: z.array(z.string()).min(1),
 })
 
-// POST: create agent (middleware already ensured you’re admin)
+// ---- POST: create agent ----
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const parsed = createSchema.safeParse(body)
+    const parsed = CreateAgent.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(parsed.error.format(), { status: 400 })
     }
@@ -69,6 +79,9 @@ export async function POST(req: Request) {
     if (e?.code === 'P2002') {
       return NextResponse.json({ error: 'Email or extension already exists' }, { status: 409 })
     }
-    return NextResponse.json({ error: 'Failed to create agent' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to create agent', detail: e?.message, code: e?.code },
+      { status: 500 }
+    )
   }
 }
