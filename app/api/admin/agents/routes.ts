@@ -4,38 +4,24 @@ import { prisma } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'           // Prisma needs Node runtime
+export const dynamic = 'force-dynamic'    // don't statically optimize
 
 // GET: list agents
 export async function GET() {
   try {
-    // optional quick connectivity check
-    await prisma.$queryRaw`SELECT 1`
-
     const rows = await prisma.agent.findMany({
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true,
-        email: true,
-        name: true,
-        extension: true,
-        available: true,
-        companies: true,
-        isAdmin: true,
-        createdAt: true,
-      },
+        id: true, email: true, name: true, extension: true,
+        available: true, companies: true, isAdmin: true, createdAt: true
+      }
     })
-
-    const data = rows.map((r) => {
-      let companies: string[] = []
-      try {
-        companies = JSON.parse((r.companies as unknown as string) ?? '[]')
-      } catch { companies = [] }
-      return { ...r, companies }
-    })
-
-    return NextResponse.json(data, { status: 200 })
+    const data = rows.map(r => ({
+      ...r,
+      companies: JSON.parse((r.companies as unknown as string) ?? '[]') as string[]
+    }))
+    return NextResponse.json(data)
   } catch (e: any) {
     return NextResponse.json(
       { error: 'Failed to load agents', detail: e?.message, code: e?.code },
@@ -52,13 +38,12 @@ const CreateAgent = z.object({
   companies: z.array(z.string()).min(1),
 })
 
+// POST: create agent
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const parsed = CreateAgent.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json(parsed.error.format(), { status: 400 })
-    }
+    if (!parsed.success) return NextResponse.json(parsed.error.format(), { status: 400 })
 
     const { email, name, password, extension, companies } = parsed.data
     const hash = await bcrypt.hash(password, 10)
@@ -74,7 +59,6 @@ export async function POST(req: Request) {
       },
       select: { id: true },
     })
-
     return NextResponse.json(agent, { status: 201 })
   } catch (e: any) {
     if (e?.code === 'P2002') {
