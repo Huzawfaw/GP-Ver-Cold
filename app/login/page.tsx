@@ -4,6 +4,7 @@ export default function LoginPage() {
     <div className="max-w-md mx-auto p-6 space-y-3">
       <h1 className="text-2xl font-bold">Agent Login</h1>
 
+      {/* IMPORTANT: action points to the API route */}
       <form method="POST" action="/api/auth/login" className="space-y-3">
         <input
           name="email"
@@ -26,5 +27,5 @@ export default function LoginPage() {
 
       <p className="text-xs text-gray-500">Ask admin to register you first.</p>
     </div>
-  )
+  );
 }
