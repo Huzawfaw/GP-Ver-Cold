@@ -7,7 +7,7 @@ export type SessionUser = {
   sub: string
   email: string
   extension: string
-  companies: string[]  // or unknown if you prefer
+  companies: string[]
   isAdmin: boolean
 }
 
@@ -18,7 +18,6 @@ export async function requireUser(): Promise<SessionUser> {
     const user = await verifyJwt(token) as SessionUser
     return user
   } catch {
-    // bad/expired token
     redirect('/login')
   }
 }
