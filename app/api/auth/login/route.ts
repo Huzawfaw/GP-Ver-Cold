@@ -17,25 +17,33 @@ type DbAgent = {
   isAdmin: boolean
 }
 
-function setAuth(res: NextResponse, token: string) {
+function setAuthCookie(res: NextResponse, token: string) {
   res.cookies.set('auth', token, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   })
+}
+
+/** redirect with 303 so the browser follows up with GET (prevents 405) */
+function redirect303(req: NextRequest, to: string, token?: string) {
+  const url = new URL(to, req.url)
+  const res = new NextResponse(null, { status: 303, headers: { Location: url.toString() } })
+  if (token) setAuthCookie(res, token)
   return res
 }
 
-// If someone browses to /api/auth/login with GET, send them to /login (no 405)
+// If a user hits this URL with GET in the address bar, send them to /login (no 405)
 export async function GET(req: NextRequest) {
-  return NextResponse.redirect(new URL('/login', req.url))
+  return redirect303(req, '/login')
 }
 
 export async function POST(req: NextRequest) {
-  // accept form or json
-  let email = '', password = ''
+  // Accept JSON or form
+  let email = ''
+  let password = ''
   const ct = req.headers.get('content-type') || ''
   if (ct.includes('application/json')) {
     const b = await req.json()
@@ -47,7 +55,7 @@ export async function POST(req: NextRequest) {
     password = String(fd.get('password') || '')
   }
 
-  // Hard-coded root admin
+  // Root-admin fast path (ensures admin exists and logs them in)
   if (email === ROOT_ADMIN.email.toLowerCase() && password === ROOT_ADMIN.password) {
     const admin = await prisma.agent.upsert({
       where: { email },
@@ -70,29 +78,36 @@ export async function POST(req: NextRequest) {
 
     const companies = JSON.parse(admin.companies) as string[]
     const token = await signJwt({
-      sub: admin.id, email: admin.email, extension: admin.extension, companies, isAdmin: true,
+      sub: admin.id,
+      email: admin.email,
+      extension: admin.extension,
+      companies,
+      isAdmin: true,
     })
 
-    const res = NextResponse.redirect(new URL('/admin', req.url))
-    return setAuth(res, token)
+    return redirect303(req, '/admin', token)
   }
 
   // Normal agent
-  const agent = await prisma.agent.findUnique({
+  const agent = (await prisma.agent.findUnique({
     where: { email },
     select: { id: true, email: true, extension: true, password: true, companies: true, isAdmin: true },
-  }) as DbAgent | null
+  })) as DbAgent | null
 
   if (!agent) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+
   const ok = await bcrypt.compare(password, agent.password)
   if (!ok) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
 
   const companies = JSON.parse(agent.companies) as string[]
   const token = await signJwt({
-    sub: agent.id, email: agent.email, extension: agent.extension, companies, isAdmin: !!agent.isAdmin,
+    sub: agent.id,
+    email: agent.email,
+    extension: agent.extension,
+    companies,
+    isAdmin: !!agent.isAdmin,
   })
 
   const dest = agent.isAdmin ? '/admin' : '/dialer'
-  const res = NextResponse.redirect(new URL(dest, req.url))
-  return setAuth(res, token)
+  return redirect303(req, dest, token)
 }
