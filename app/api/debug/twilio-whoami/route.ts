@@ -1,32 +1,27 @@
+// app/api/debug/twilio-whoami/route.ts
 import { NextResponse } from 'next/server';
 import twilio from 'twilio';
+import { getTwilioEnv } from '@/lib/twilioEnv';
 
 export const runtime = 'nodejs';
 
-function must(v: string | undefined, name: string) {
-  if (!v) throw new Error(`Missing env: ${name}`);
-  return v;
-}
-
 export async function GET() {
   try {
-    const AC = must(process.env.TWILIO_ACCOUNT_SID, 'TWILIO_ACCOUNT_SID');
-    const AP =
-      process.env.TWILIO_TWIML_APP_SID || process.env.TWILIO_APP_SID || '';
-    if (!AP) throw new Error('Missing env: TWILIO_TWIML_APP_SID / TWILIO_APP_SID');
+    const env = getTwilioEnv();
+    if (env.missing.length) {
+      return NextResponse.json(
+        { ok: false, message: `Missing env: ${env.missing.join(', ')}` },
+        { status: 500 }
+      );
+    }
 
-    const SK =
-      process.env.TWILIO_API_KEY_SID || process.env.TWILIO_API_KEY || '';
-    const SECRET = must(process.env.TWILIO_API_SECRET, 'TWILIO_API_SECRET');
-
-    const client = twilio(SK, SECRET, { accountSid: AC });
-
-    const app = await client.applications(AP).fetch();
+    const client = twilio(env.API_KEY_SID!, env.API_KEY_SECRET!, { accountSid: env.ACCOUNT_SID! });
+    const app = await client.applications(env.APP_SID!).fetch();
 
     return NextResponse.json({
       ok: true,
-      accountSid: AC,
-      appSid: AP,
+      accountSid: env.ACCOUNT_SID,
+      appSid: env.APP_SID,
       fetched: {
         sid: app.sid,
         friendlyName: app.friendlyName,
