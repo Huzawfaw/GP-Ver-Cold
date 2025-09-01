@@ -70,7 +70,8 @@ export default function DialerClient({ extension, companies }: Props) {
     };
   }, [extension, company]);
 
-  const canCall = status === 'ready' && number.trim().length > 0;
+  
+  const canCall =!!deviceRef.current && !loading && number.trim().length > 0 && status !== 'live' && status !== 'ringing';
 
   const startCall = async () => {
     if (!deviceRef.current) return;
