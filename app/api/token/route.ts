@@ -1,3 +1,4 @@
+// app/api/token/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { jwt as TwilioJwt } from 'twilio';
 import { getTwilioEnv } from '@/lib/twilioEnv';
@@ -6,6 +7,7 @@ const { AccessToken } = TwilioJwt;
 const { VoiceGrant } = AccessToken;
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -21,20 +23,15 @@ export async function GET(req: NextRequest) {
   }
 
   const token = new AccessToken(
-    env.ACCOUNT_SID!,
-    env.API_KEY_SID!,
-    env.API_KEY_SECRET!,
-    { identity }
+    env.ACCOUNT_SID!, env.API_KEY_SID!, env.API_KEY_SECRET!, { identity }
   );
 
   const grant = new VoiceGrant({
     outgoingApplicationSid: env.APP_SID!,
-    // optional: pass company to your TwiML app via params
-    // outgoingApplicationParams: { company },
+    // outgoingApplicationParams: { company }, // optional if you want to pass a param to your TwiML
     incomingAllow: true,
   });
 
   token.addGrant(grant);
-
   return NextResponse.json({ token: token.toJwt() });
 }
